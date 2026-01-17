@@ -28,7 +28,7 @@ int main(int argc, char const *argv[]) {
 
     // 3. Set up the server address structure
     struct sockaddr_in serv_addr;
-    memset(&serv_addr, 0, izeof(serv_addr));
+    memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
     serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
