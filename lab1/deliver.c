@@ -1,3 +1,4 @@
+// This is a simple UDP client program that sends a file transfer request to a server
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,9 +8,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <ctype.h>
 
 int main(int argc, char const *argv[]) {
+    // 1. Check the port number from command line argument
     if (argc != 3) {
         fprintf(stderr, "Usage: deliver <hostname> <UDP port>\n");
         exit(1);
@@ -18,6 +19,7 @@ int main(int argc, char const *argv[]) {
     const char *server_addr_str = argv[1];
     const char *server_port_str = argv[2];
 
+    // 2. Get server address info
     struct addrinfo hints, *servinfo;
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -29,6 +31,7 @@ int main(int argc, char const *argv[]) {
         return 1;
     }
 
+    // 3. Open Socket
     int sockfd;
     if ((sockfd = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol)) == -1) {
         perror("client: socket");
@@ -36,12 +39,14 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
     
+    // 4. Get user input
     const int BUFSIZE = 100;
     char input[BUFSIZE];
     char filename[BUFSIZE];
     printf("Enter message to send (ftp <filename>): ");
     fgets(input, BUFSIZE, stdin);
 
+    // 5. Parse the user input
     char word[BUFSIZE];
     if(sscanf(input, "%s %s", word, filename) != 2 || strcmp(word, "ftp") != 0) {
         fprintf(stderr, "Invalid input format. Use: ftp <filename>\n");
@@ -50,6 +55,7 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
 
+    // 6. Check if file exists
     if (access(filename, F_OK) == -1) {
         perror("File check");
         freeaddrinfo(servinfo);
@@ -57,6 +63,7 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
 
+    // 7. Send "ftp" message to server
     int numbytes;
     if ((numbytes = sendto(sockfd, "ftp", 3, 0, servinfo->ai_addr, servinfo->ai_addrlen)) == -1) {
         perror("sendto");
@@ -65,6 +72,7 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
 
+    // 8. Receive response from server
     char recv_buf[BUFSIZE];
     struct sockaddr_storage sender_addr;
     socklen_t addr_len = sizeof sender_addr;
@@ -77,8 +85,9 @@ int main(int argc, char const *argv[]) {
         exit(1);
     }
 
-    recv_buf[numbytes] = '\0';
+    recv_buf[numbytes] = '\0'; // Null-terminate the received string -> C constraint
 
+    // 9. Check server response
     if(strcmp(recv_buf, "yes") == 0) {
         printf("A file transfer can start.\n");
     } else {
