@@ -64,7 +64,7 @@ int main(int argc, char const *argv[]) {
     }
 
     // 7. Send "ftp" message to server
-    int numbytes;
+    ssize_t numbytes;
     if ((numbytes = sendto(sockfd, "ftp", 3, 0, servinfo->ai_addr, servinfo->ai_addrlen)) == -1) {
         perror("sendto");
         freeaddrinfo(servinfo);

@@ -49,7 +49,7 @@ int main(int argc, char const *argv[]) {
     socklen_t cli_len = sizeof(cli_addr);
 
     // 6. Receive
-    int numbytes = recvfrom(sockfd, buffer, BUFSIZE - 1, 0, (struct sockaddr *) &cli_addr, &cli_len);
+    ssize_t numbytes = recvfrom(sockfd, buffer, BUFSIZE - 1, 0, (struct sockaddr *) &cli_addr, &cli_len);
     if(numbytes == -1) {
         perror("recvfrom failed");
         close(sockfd);
