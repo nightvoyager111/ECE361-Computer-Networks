@@ -19,6 +19,11 @@ int main(int argc, char const *argv[]) {
 
     int port = atoi(argv[1]); 
 
+    if (port <= 0 || port > 65535) {
+        fprintf(stderr, "Invalid port number.\n");
+        exit(1);
+    }
+
     // 2. Create a UDP socket
     int sockfd;
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
