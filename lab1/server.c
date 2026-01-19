@@ -45,7 +45,7 @@ int main(int argc, char const *argv[]) {
         exit(1);            
     }
 
-    printf("Server is listening on port %d...\n", port);
+    //printf("Server is listening on port %d...\n", port);
 
     // 5. Listen for incoming messages
     const int BUFSIZE = 100;
@@ -62,8 +62,7 @@ int main(int argc, char const *argv[]) {
     }
 
     buffer[numbytes] = '\0';
-    printf("Received message: %s\n", buffer);
-
+    
     // 7. Check the message
     if (strcmp(buffer, "ftp") == 0) {
         if (sendto(sockfd, "yes", 3, 0, (struct sockaddr *) &cli_addr, cli_len) == -1) {
