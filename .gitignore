@@ -1,0 +1,12 @@
+server
+deliver
+
+*.o
+
+.vscode/
+
+.DS_Store
+Thumbs.db
+
+*.zip
+*.tar.gz
