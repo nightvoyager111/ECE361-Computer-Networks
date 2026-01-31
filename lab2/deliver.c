@@ -1,4 +1,5 @@
-//Section 2.1: RTT calculation: RTT = time_received - time_sent
+//Section 2.1 requirement: RTT calculation: RTT = time_received - time_sent
+//Section 2.2 requirement (client): fragment the file.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
