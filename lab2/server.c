@@ -1,4 +1,4 @@
-//Section 2.2 requirement (server): reassemble the file.
+://Section 2.2 requirement (server): reassemble the file.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -33,7 +33,7 @@ int main(int argc, char const *argv[]) {
         int total, frag_no, size;
         char filename[256];
         int header_end = 0;
-        int colon_count = 0;
+        int colo:_count = 0;
 
         for (int i = 0; i < n; i++) {
             if (buffer[i] == ':') {
@@ -67,4 +67,3 @@ int main(int argc, char const *argv[]) {
     close(sockfd);
     return 0;
     
-}
