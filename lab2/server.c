@@ -28,7 +28,7 @@ int main(int argc, char const *argv[]) {
     // 3. Main loop to receive fragments and reassemble the file
     while (1) {
         socklen_t addr_len = sizeof(cli_addr);
-        int n = recvfrom(sockfd, buffer, BUFSIZE, 0, (struct sockaddr *)&cli_addr, &addr_len);
+        ssize_t n = recvfrom(sockfd, buffer, BUFSIZE, 0, (struct sockaddr *)&cli_addr, &addr_len);
         // recvfrom: wait for a fragment
         if (n <= 0) continue;
 
@@ -50,6 +50,7 @@ int main(int argc, char const *argv[]) {
 
         //use sscanf to extract header fields
         sscanf(buffer, "%d:%d:%d:%[^:]:", &total, &frag_no, &size, filename);
+        //[^:] means find a string not containing commas or blanks
 
         // receive the first fragment, open the file for writing
         if (frag_no == 1) {

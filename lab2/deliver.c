@@ -38,6 +38,7 @@ int main(int argc, char const *argv[]) {
     if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
         perror("Error setting timeout");
     }
+    
     char input[256], filename[256], command[16];
     printf("Enter: ftp <filename>\n");
     fgets(input, sizeof(input), stdin);
