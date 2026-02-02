@@ -8,11 +8,12 @@
 #define BUFSIZE 1200
 
 int main(int argc, char const *argv[]) {
+    // 1. Check the port number from command line argument
     if (argc != 2) {
         fprintf(stderr, "Usage: server <port>\n");
         return 1;
     }
-
+    // 2. Create a UDP socket and bind it to the specified port
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     struct sockaddr_in serv_addr, cli_addr;
     memset(&serv_addr, 0, sizeof(serv_addr));
@@ -22,12 +23,13 @@ int main(int argc, char const *argv[]) {
 
     bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
 
-    char buffer[BUFSIZE];
+    char buffer[BUFSIZE]; //store the header + data
     FILE *fp = NULL;
-
+    // 3. Main loop to receive fragments and reassemble the file
     while (1) {
         socklen_t addr_len = sizeof(cli_addr);
         int n = recvfrom(sockfd, buffer, BUFSIZE, 0, (struct sockaddr *)&cli_addr, &addr_len);
+        // recvfrom: wait for a fragment
         if (n <= 0) continue;
 
         int total, frag_no, size;
@@ -35,6 +37,7 @@ int main(int argc, char const *argv[]) {
         int header_end = 0;
         int colon_count = 0;
 
+        // parsing the header
         for (int i = 0; i < n; i++) {
             if (buffer[i] == ':') {
                 colon_count++;
@@ -45,8 +48,10 @@ int main(int argc, char const *argv[]) {
             }
         }
 
+        //use sscanf to extract header fields
         sscanf(buffer, "%d:%d:%d:%[^:]:", &total, &frag_no, &size, filename);
 
+        // receive the first fragment, open the file for writing
         if (frag_no == 1) {
             fp = fopen(filename, "wb");
         }

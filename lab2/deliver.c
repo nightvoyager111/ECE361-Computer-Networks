@@ -13,11 +13,13 @@
 #define BUFSIZE 1200
 
 int main(int argc, char const *argv[]) {
+    // 1. Check command line arguments
     if (argc != 3) {
         fprintf(stderr, "Usage: deliver <hostname> <port>\n");
         return 1;
     }
 
+    // 2. Get server address info
     struct addrinfo hints, *servinfo;
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
@@ -27,9 +29,15 @@ int main(int argc, char const *argv[]) {
         perror("getaddrinfo");
         return 1;
     }
-
+// 3. Open Socket
     int sockfd = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
 
+    struct timeval tv;
+    tv.tv_sec = 1;  // 1 second timeout
+    tv.tv_usec = 0;
+    if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
+        perror("Error setting timeout");
+    }
     char input[256], filename[256], command[16];
     printf("Enter: ftp <filename>\n");
     fgets(input, sizeof(input), stdin);
