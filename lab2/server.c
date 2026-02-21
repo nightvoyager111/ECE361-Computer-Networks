@@ -34,7 +34,7 @@ int main(int argc, char const *argv[]) {
 
         int total, frag_no, size;
         char filename[256];
-        int header_end = 0;
+        int header_end = -1;
         int colon_count = 0;
 
         // parsing the header
@@ -42,20 +42,19 @@ int main(int argc, char const *argv[]) {
             if (buffer[i] == ':') {
                 colon_count++;
                 if (colon_count == 4) {
-                    header_end = i;
+                    header_end = i + 1;
                     break;
                 }
             }
         }
 
-        //use sscanf to extract header fields
-        sscanf(buffer, "%d:%d:%d:%[^:]:", &total, &frag_no, &size, filename);
-        //[^:] means find a string not containing commas or blanks
+        
 
-        // receive the first fragment, open the file for writing
-        if (frag_no == 1) {
-            fp = fopen(filename, "wb");
-        }
+        char header[256];
+        int header_len = header_end - 1;
+        memcpy(header, buffer, header_len);
+        header[header_len] = '\0';
+        sscanf(header, "%d:%d:%d:%s", &total, &frag_no, &size, filename);
 
         if (fp) {
             fwrite(buffer + header_end, 1, size, fp);
