@@ -9,7 +9,7 @@
 #include <time.h>
 
 #define BUF_SIZE 4096
-#define THRESHOLD 0.1 // drop ~10% of packets
+#define DROP_RATE 0.1 // drop ~10% of packets
 
 int rev_packet(const char *buf, size_t buf_len,
                  unsigned int *total_frag,
@@ -61,6 +61,9 @@ int main(int argc, char *argv[]) {
         printf("Usage: %s <port>\n", argv[0]);
         return 1;
     }
+
+    srand(time(NULL)); //seed for random number generator
+
     //create socket and bind it
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof hints);
@@ -71,7 +74,7 @@ int main(int argc, char *argv[]) {
 
     int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     bind(sockfd, res->ai_addr, res->ai_addrlen);
-    freeaddrinfo(res);
+    //freeaddrinfo(res);
 
     printf("Server listening on port %s...\n", argv[1]);
 
@@ -87,9 +90,6 @@ int main(int argc, char *argv[]) {
         ssize_t n = recvfrom(sockfd, buf, sizeof(buf), 0,
                              (struct sockaddr *)&client, &client_len); // n is bytes recevied
 
-        if (n <= 0) continue;
-
-        
 
         unsigned int total_frag, frag_no, size;
         size_t data_start;
@@ -99,19 +99,21 @@ int main(int argc, char *argv[]) {
             continue;
         }
 
+        // Simulate packet drop
+        if (((double)rand() / RAND_MAX) < DROP_RATE) {
+            printf("Packet dropped: fragment %u was lost\n", frag_no);
+            continue; // No ACK
+        }
+
+
         if (frag_no == 1) {
             if (fp) fclose(fp);
             fp = fopen(filename, "wb");
-            if (!fp) {
-                send_ctrl(sockfd, (struct sockaddr *)&client, client_len, "NACK", frag_no);
-                continue;
-            }
+        
             printf("Receiving file: %s (%u fragments)\n", filename, total_frag);
         }
 
-        fwrite(buf + data_start, 1, size, fp);
-        send_ctrl(sockfd, (struct sockaddr *)&client, client_len, "ACK", frag_no);
-
+        
         //last fragment recevied and close
         if (frag_no == total_frag) {
             fclose(fp);
