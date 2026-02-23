@@ -37,9 +37,9 @@ int main(int argc, char *argv[]) {
     int sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
     // RTT estimation variables
-    double estimated_rtt = 0.1;
+    double estimated_rtt = 1.0;
     double dev_rtt = 0.0;
-    double timeout_interval = 0.5;
+    double timeout_interval = 1.0;
     const double alpha = 0.125, beta = 0.25;
 
 
