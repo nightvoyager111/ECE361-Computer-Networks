@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
             if (timeout_interval < 0.01) timeout_interval = 0.1;
 
             unsigned int ack_no;
-            if (sscanf(ctrlbuf, "ACK: %u", &ack_no) == 1 && ack_no == frag_no) {
+            if (sscanf(ctrlbuf, "ACK:%u", &ack_no) == 1 && ack_no == frag_no) {
                 printf("Fragment %u sent. RTT: %f s\n", frag_no, rtt);
                 break;
             } else {

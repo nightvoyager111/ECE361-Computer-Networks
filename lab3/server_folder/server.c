@@ -113,6 +113,12 @@ int main(int argc, char *argv[]) {
             printf("Receiving file: %s (%u fragments)\n", filename, total_frag);
         }
 
+        // Write data to file
+        if (fp) {
+            fwrite(buf + data_start, 1, size, fp); 
+        }
+        // Send ACK
+        send_ctrl(sockfd, (struct sockaddr *)&client, client_len, "ACK", frag_no);
         
         //last fragment recevied and close
         if (frag_no == total_frag) {
