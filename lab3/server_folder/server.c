@@ -9,7 +9,7 @@
 #include <time.h>
 
 #define BUF_SIZE 4096
-#define DROP_RATE 0.01 // drop ~10% of packets
+#define DROP_RATE 0.1 // drop ~10% of packets
 
 int rev_packet(const char *buf, size_t buf_len,
                  unsigned int *total_frag,
