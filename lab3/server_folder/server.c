@@ -11,6 +11,7 @@
 #define BUF_SIZE 4096
 #define DROP_RATE 0.1 // drop ~10% of packets
 
+// header-parser
 int rev_packet(const char *buf, size_t buf_len,
                  unsigned int *total_frag,
                  unsigned int *frag_no,
@@ -132,3 +133,4 @@ int main(int argc, char *argv[]) {
     close(sockfd);
     return 0;
 }
+// Compare: diff deliver_folder/source.jpg server_folder/source.jpg

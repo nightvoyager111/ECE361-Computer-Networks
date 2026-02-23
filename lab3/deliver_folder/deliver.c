@@ -63,16 +63,19 @@ int main(int argc, char *argv[]) {
             
 
         while (1) { 
+            // Step1: set socket timeout
             struct timeval tv;
             tv.tv_sec = (long)timeout_interval;
             tv.tv_usec = (long)((timeout_interval - tv.tv_sec) * 1e6);
             setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
 
-            clock_gettime (CLOCK_MONOTONIC, &sendtime); //
+            //Step2: send the packet 
+            clock_gettime (CLOCK_MONOTONIC, &sendtime); 
             sendto(sockfd, packet, header_len + size, 0, res->ai_addr, res->ai_addrlen);
             
             struct sockaddr_storage server_addr;
             socklen_t server_len = sizeof(server_addr);
+            //Step3: wait for ACK/NACK with timeout
             ssize_t rn = recvfrom(sockfd, ctrlbuf, sizeof(ctrlbuf)-1, 0, (struct sockaddr *)&server_addr, &server_len);
             
             if (rn < 0) {
@@ -82,6 +85,7 @@ int main(int argc, char *argv[]) {
             }
             
             ctrlbuf[rn] = '\0'; 
+            //Step4: measure RTT and update timeout interval
             clock_gettime(CLOCK_MONOTONIC, &recvtime);
             double rtt = (recvtime.tv_sec - sendtime.tv_sec) + (recvtime.tv_nsec - sendtime.tv_nsec)/1e9;
 
@@ -93,9 +97,10 @@ int main(int argc, char *argv[]) {
             unsigned int ack_no;
             if (sscanf(ctrlbuf, "ACK:%u", &ack_no) == 1 && ack_no == frag_no) {
                 printf("Fragment %u sent. RTT: %f s\n", frag_no, rtt);
-                break;
+                break; // Success, move to next fragment
             } else {
                 printf("Received NACK or wrong ACK. Retransmitting fragment %u\n", frag_no);
+                
             }
 
            
