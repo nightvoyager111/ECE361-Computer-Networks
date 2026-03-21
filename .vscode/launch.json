@@ -6,8 +6,8 @@
       "type": "lldb",
       "request": "launch",
       "args": [],
-      "cwd": "/Users/zhangyiyi/ECE361-Computer-Networks/lab1",
-      "program": "/Users/zhangyiyi/ECE361-Computer-Networks/lab1/build/Debug/outDebug"
+      "cwd": "/Users/zhangyiyi/ECE361-Computer-Networks/Text_Conferencing",
+      "program": "/Users/zhangyiyi/ECE361-Computer-Networks/Text_Conferencing/build/Debug/outDebug"
     }
   ]
 }

@@ -9,26 +9,20 @@
 #define MAX_DATA 1024
 
 typedef struct {
-    unsigned int type;
-    unsigned int size;
-    char source[MAX_NAME];
-    char data[MAX_DATA];
+    unsigned int type; // LOGIN, MESSAGE, etc.
+    unsigned int size; // length of data
+    char source[MAX_NAME]; // sender's ID
+    char data[MAX_DATA]; // content 
 } message;
 
-enum {
-    LOGIN = 1,
-    LO_ACK,
-    LO_NAK,
+enum { // Message types
+    LOGIN = 1, LO_ACK, LO_NAK,
     EXIT,
-    JOIN,
-    JN_ACK,
-    JN_NAK,
+    JOIN, JN_ACK, JN_NAK,
     LEAVE_SESS,
-    NEW_SESS,
-    NS_ACK,
+    NEW_SESS, NS_ACK,
     MESSAGE,
-    QUERY,
-    QU_ACK
+    QUERY, QU_ACK
 };
 
 int sockfd = -1;
@@ -45,28 +39,31 @@ void reset_state() {
     memset(client_id, 0, sizeof(client_id));
 }
 
+// Fix: the client uses a thread (not select()), so loop until all bytes arrive
 void *receiver(void *arg) {
-    message msg;
-
     while (1) {
-        int n = recv(sockfd, &msg, sizeof(msg), 0);
+        message msg;
+        size_t total = 0;
+        char *buf = (char *)&msg;
 
-        if (n <= 0) {
-            if (logged_in) {
-                printf("Logged out / disconnected from server\n");
+        while (total < sizeof(msg)) {
+            int n = recv(sockfd, &msg, sizeof(msg), 0);
+            if (n <= 0) {
+                if (logged_in) {
+                    printf("Logged out / disconnected from server\n");
+                }
+                reset_state();
+                return NULL;
             }
-            reset_state();
-            break;
+            total += n;
         }
-
+        
         if (msg.type == MESSAGE) {
             printf("%s: %s\n", msg.source, msg.data);
         } else {
             printf("%s\n", msg.data);
         }
     }
-
-    return NULL;
 }
 
 void send_msg(int type, char *data) {

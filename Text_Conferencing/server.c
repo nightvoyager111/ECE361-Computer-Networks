@@ -20,20 +20,14 @@ typedef struct {
     char data[MAX_DATA];
 } message;
 
-enum {
-    LOGIN = 1,
-    LO_ACK,
-    LO_NAK,
+enum { // Message types
+    LOGIN = 1, LO_ACK, LO_NAK,
     EXIT,
-    JOIN,
-    JN_ACK,
-    JN_NAK,
+    JOIN, JN_ACK, JN_NAK,
     LEAVE_SESS,
-    NEW_SESS,
-    NS_ACK,
+    NEW_SESS, NS_ACK,
     MESSAGE,
-    QUERY,
-    QU_ACK
+    QUERY, QU_ACK
 };
 
 typedef struct {
@@ -42,18 +36,23 @@ typedef struct {
 } credential_t;
 
 typedef struct {
-    int active;
-    int sockfd;
-    char id[MAX_NAME];
-    char session_id[MAX_NAME];
+    int active; // In use? 
+    int sockfd; // socketfd for this client
+    char id[MAX_NAME]; // 用户名
+    char session_id[MAX_NAME]; // 当前所在的 session（空字符串=不在任何session）
     char ip[INET_ADDRSTRLEN];
     int port;
+    // Fix
+    char recv_buf[sizeof(message)];
+    size_t recv_pos;
 } client_t;
 
+// Session表只记录“这个session存在”，具体什么人在里面需要遍历client_t
 typedef struct {
     int active;
     char session_id[MAX_NAME];
 } session_t;
+
 
 static credential_t registered_users[] = {
     {"tammy", "123"},
@@ -68,28 +67,33 @@ static const int registered_count =
 static client_t clients[MAX_CLIENTS];
 static session_t sessions[MAX_SESSIONS];
 
+
+// 循环发，直到发完len字节
 static int send_all(int sockfd, const void *buf, size_t len) {
     size_t total = 0;
     const char *p = (const char *)buf;
     while (total < len) {
         ssize_t n = send(sockfd, p + total, len - total, 0);
-        if (n <= 0) return -1;
+        if (n <= 0) return -1; // 对方断了
         total += (size_t)n;
     }
     return 0;
 }
 
+// 循环收，直到收满len字节
 static int recv_all(int sockfd, void *buf, size_t len) {
     size_t total = 0;
     char *p = (char *)buf;
     while (total < len) {
         ssize_t n = recv(sockfd, p + total, len - total, 0);
-        if (n == 0) return 0;
-        if (n < 0) return -1;
+        if (n == 0) return 0; // 对方正常断开
+        if (n < 0) return -1; // 错误
         total += (size_t)n;
     }
     return 1;
 }
+// All receive/send operations only use these 2 functions, never call recv/send directly.
+
 
 static void init_message(message *msg, unsigned int type, const char *source, const char *data) {
     memset(msg, 0, sizeof(*msg));
@@ -341,6 +345,7 @@ static void handle_chat(int sockfd, const message *msg) {
 }
 
 int main(int argc, char *argv[]) {
+
     if (argc != 2) {
         fprintf(stderr, "Usage: server <TCP port number to listen on>\n");
         return 1;
@@ -417,30 +422,35 @@ int main(int argc, char *argv[]) {
                 FD_SET(newfd, &master);
                 if (newfd > fdmax) fdmax = newfd;
             } else {
-                message msg;
-                int status = recv_all(fd, &msg, sizeof(msg));
+                int c = find_client_by_sock(fd);
+                if (c < 0) {close(fd); FD_CLR(fd, &master); continue; }
 
-                if (status <= 0) {
-                    int c = find_client_by_sock(fd);
-                    if (c >= 0) remove_client(c);
-                    else close(fd);
+                ssize_t n = recv(fd,
+                                clients[c].recv_buf + clients[c].recv_pos, 
+                                sizeof(message) - clients[c].recv_pos, 0);
+                if (n <= 0) {
+                    remove_client(c);
                     FD_CLR(fd, &master);
                     continue;
                 }
 
-                struct sockaddr_in peer;
-                socklen_t plen = sizeof(peer);
-                memset(&peer, 0, sizeof(peer));
-                getpeername(fd, (struct sockaddr *)&peer, &plen);
+                clients[c].recv_pos += n;
 
-                switch (msg.type) {
+                if(clients[c].recv_pos == sizeof(message)) {
+                    message *msg = (message *)clients[c].recv_buf;
+                    clients[c].recv_pos = 0;
+
+                    struct sockaddr_in peer;
+                    socklen_t plen = sizeof(peer);
+                    memset(&peer, 0, sizeof(peer));
+                    getpeername(fd, (struct sockaddr *)&peer, &plen);
+
+                    switch (msg->type) {
                     case LOGIN:
                         handle_login(fd, &msg, &peer);
                         break;
                     case EXIT: {
-                        int c = find_client_by_sock(fd);
-                        if (c >= 0) remove_client(c);
-                        else close(fd);
+                        remove_client(c);
                         FD_CLR(fd, &master);
                         break;
                     }
@@ -463,6 +473,14 @@ int main(int argc, char *argv[]) {
                         send_reply(fd, LO_NAK, "Unknown request");
                         break;
                 }
+
+                }
+
+
+
+                
+
+                
             }
         }
     }
