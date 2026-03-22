@@ -6,14 +6,16 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
-#include <signal.h>
-#include <time.h>
+#include <signal.h> // Added this to fix section 1 (if i kill the terminal, there won't be any error msg now)
+#include <time.h> // needed for inactivity timer
 
 #define MAX_NAME 50
 #define MAX_DATA 1024
 #define MAX_CLIENTS 10
 #define MAX_SESSIONS 10
 #define BACKLOG 10
+
+// inactivity time
 #define INACTIVITY_LIMIT 120
 #define CHECK_INTERVAL 30
 
@@ -32,7 +34,7 @@ enum { // Message types
     NEW_SESS, NS_ACK,
     MESSAGE,
     QUERY, QU_ACK,
-    PRIVATE_MSG
+    PRIVATE_MSG // Section 2
 };
 
 typedef struct {
@@ -43,17 +45,17 @@ typedef struct {
 typedef struct {
     int active; // In use? 
     int sockfd; // socketfd for this client
-    char id[MAX_NAME]; // 用户名
-    char session_id[MAX_NAME]; // 当前所在的 session（空字符串=不在任何session）
+    char id[MAX_NAME]; 
+    char session_id[MAX_NAME]; 
     char ip[INET_ADDRSTRLEN];
     int port;
-    // Fix
-    char recv_buf[sizeof(message)];
-    size_t recv_pos;
-    time_t last_active;
+    
+    char recv_buf[sizeof(message)]; // added for bug fix
+    size_t recv_pos; // added for bug fix
+    time_t last_active; // Section 2: inactivity timer
 } client_t;
 
-// Session表只记录“这个session存在”，具体什么人在里面需要遍历client_t
+
 typedef struct {
     int active;
     char session_id[MAX_NAME];
@@ -74,31 +76,30 @@ static client_t clients[MAX_CLIENTS];
 static session_t sessions[MAX_SESSIONS];
 
 
-// 循环发，直到发完len字节
+
 static int send_all(int sockfd, const void *buf, size_t len) {
     size_t total = 0;
     const char *p = (const char *)buf;
     while (total < len) {
         ssize_t n = send(sockfd, p + total, len - total, 0);
-        if (n <= 0) return -1; // 对方断了
+        if (n <= 0) return -1; // client disconnects
         total += (size_t)n;
     }
     return 0;
 }
 
-// 循环收，直到收满len字节
+
 static int recv_all(int sockfd, void *buf, size_t len) {
     size_t total = 0;
     char *p = (char *)buf;
     while (total < len) {
         ssize_t n = recv(sockfd, p + total, len - total, 0);
-        if (n == 0) return 0; // 对方正常断开
-        if (n < 0) return -1; // 错误
+        if (n == 0) return 0; 
+        if (n < 0) return -1; 
         total += (size_t)n;
     }
     return 1;
 }
-// All receive/send operations only use these 2 functions, never call recv/send directly.
 
 
 static void init_message(message *msg, unsigned int type, const char *source, const char *data) {
@@ -233,7 +234,7 @@ static void handle_login(int sockfd, const message *msg, struct sockaddr_in *pee
     inet_ntop(AF_INET, &peer->sin_addr, clients[slot].ip, sizeof(clients[slot].ip));
     clients[slot].port = ntohs(peer->sin_port);
 
-    clients[slot].last_active = time(NULL);
+    clients[slot].last_active = time(NULL); // Section 2: set last_active when client logs in
     send_reply(sockfd, LO_ACK, "Login successful");
 }
 
@@ -441,17 +442,17 @@ int main(int argc, char *argv[]) {
     while (1) {
         readfds = master;
 
-        //inactivity
+        // Section 2: now has a timeout instead of blocking forever
         struct timeval timeout;
         timeout.tv_sec = CHECK_INTERVAL;
         timeout.tv_usec = 0;
-
-        int activity = select(fdmax + 1, &readfds, NULL, NULL, &timeout);
+        int activity = select(fdmax + 1, &readfds, NULL, NULL, &timeout); // used to have 3 NULL
         if (activity < 0) {
             perror("select");
             break;
         }
 
+        // Inactivity check loop 
         time_t now = time(NULL);
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (!clients[i].active) continue;

@@ -61,7 +61,7 @@ void *receiver(void *arg) {
         
         if (msg.type == MESSAGE) {
             printf("%s: %s\n", msg.source, msg.data);
-        } else if (msg.type == PRIVATE_MSG) {
+        } else if (msg.type == PRIVATE_MSG) { //handle private_msg and exit from server
             printf("[private] %s: %s\n", msg.source, msg.data);
         } else if (msg.type == EXIT) {
             printf("Server: %s\n", msg.data);
