@@ -423,7 +423,26 @@ int main(int argc, char *argv[]) {
                 if (newfd > fdmax) fdmax = newfd;
             } else {
                 int c = find_client_by_sock(fd);
-                if (c < 0) {close(fd); FD_CLR(fd, &master); continue; }
+                if (c < 0) {
+                    // no slot yet — must be a LOGIN attempt
+                    message msg;
+                    int status = recv_all(fd, &msg, sizeof(msg));
+                    if (status <= 0) { close(fd); FD_CLR(fd, &master); continue; }
+
+                    struct sockaddr_in peer;
+                    socklen_t plen = sizeof(peer);
+                    memset(&peer, 0, sizeof(peer));
+                    getpeername(fd, (struct sockaddr *)&peer, &plen);
+
+                    if (msg.type == LOGIN) {
+                        handle_login(fd, &msg, &peer);
+                    } else {
+                        send_reply(fd, LO_NAK, "Not logged in");
+                        close(fd);
+                        FD_CLR(fd, &master);
+                    }
+                    continue;
+                }
 
                 ssize_t n = recv(fd,
                                 clients[c].recv_buf + clients[c].recv_pos, 
@@ -447,7 +466,7 @@ int main(int argc, char *argv[]) {
 
                     switch (msg->type) {
                     case LOGIN:
-                        handle_login(fd, &msg, &peer);
+                        handle_login(fd, msg, &peer);
                         break;
                     case EXIT: {
                         remove_client(c);
@@ -455,10 +474,10 @@ int main(int argc, char *argv[]) {
                         break;
                     }
                     case NEW_SESS:
-                        handle_new_session(fd, &msg);
+                        handle_new_session(fd, msg);
                         break;
                     case JOIN:
-                        handle_join(fd, &msg);
+                        handle_join(fd, msg);
                         break;
                     case LEAVE_SESS:
                         handle_leave(fd);
@@ -467,7 +486,7 @@ int main(int argc, char *argv[]) {
                         handle_query(fd);
                         break;
                     case MESSAGE:
-                        handle_chat(fd, &msg);
+                        handle_chat(fd, msg);
                         break;
                     default:
                         send_reply(fd, LO_NAK, "Unknown request");
