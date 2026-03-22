@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
+#include <signal.h>
 
 #define MAX_NAME 50
 #define MAX_DATA 1024
@@ -345,7 +346,7 @@ static void handle_chat(int sockfd, const message *msg) {
 }
 
 int main(int argc, char *argv[]) {
-
+    signal(SIGPIPE, SIG_IGN); // A fix for "broken pipeline"
     if (argc != 2) {
         fprintf(stderr, "Usage: server <TCP port number to listen on>\n");
         return 1;
