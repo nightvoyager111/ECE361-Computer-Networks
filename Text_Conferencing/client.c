@@ -22,7 +22,8 @@ enum { // Message types
     LEAVE_SESS,
     NEW_SESS, NS_ACK,
     MESSAGE,
-    QUERY, QU_ACK
+    QUERY, QU_ACK,
+    PRIVATE_MSG // section 2
 };
 
 int sockfd = -1;
@@ -47,7 +48,7 @@ void *receiver(void *arg) {
         char *buf = (char *)&msg;
 
         while (total < sizeof(msg)) {
-            int n = recv(sockfd, &msg, sizeof(msg), 0);
+            int n = recv(sockfd, &msg, sizeof(msg) - total, 0);
             if (n <= 0) {
                 if (logged_in) {
                     printf("Logged out / disconnected from server\n");
@@ -60,6 +61,12 @@ void *receiver(void *arg) {
         
         if (msg.type == MESSAGE) {
             printf("%s: %s\n", msg.source, msg.data);
+        } else if (msg.type == PRIVATE_MSG) {
+            printf("[private] %s: %s\n", msg.source, msg.data);
+        } else if (msg.type == EXIT) {
+            printf("Server: %s\n", msg.data);
+            reset_state();
+            return NULL;
         } else {
             printf("%s\n", msg.data);
         }
@@ -185,6 +192,20 @@ int main() {
                 pthread_join(recv_thread, NULL);
             }
             break;
+        }
+
+        else if (strncmp(input, "/msg ", 5) == 0) {
+            char target[MAX_NAME];
+            char text[MAX_DATA];
+
+            if (sscanf(input, "/msg %49s %1023[^\n]", target, text) != 2) {
+                printf("Usage: /msg <user> <message>\n");
+                continue;
+            }
+
+            char payload[MAX_DATA];
+            snprintf(payload, sizeof(payload), "%s:%s", target, text);
+            send_msg(PRIVATE_MSG, payload);
         }
 
         else {

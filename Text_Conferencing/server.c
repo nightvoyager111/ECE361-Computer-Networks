@@ -7,12 +7,15 @@
 #include <sys/select.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <time.h>
 
 #define MAX_NAME 50
 #define MAX_DATA 1024
 #define MAX_CLIENTS 10
 #define MAX_SESSIONS 10
 #define BACKLOG 10
+#define INACTIVITY_LIMIT 120
+#define CHECK_INTERVAL 30
 
 typedef struct {
     unsigned int type;
@@ -28,7 +31,8 @@ enum { // Message types
     LEAVE_SESS,
     NEW_SESS, NS_ACK,
     MESSAGE,
-    QUERY, QU_ACK
+    QUERY, QU_ACK,
+    PRIVATE_MSG
 };
 
 typedef struct {
@@ -46,6 +50,7 @@ typedef struct {
     // Fix
     char recv_buf[sizeof(message)];
     size_t recv_pos;
+    time_t last_active;
 } client_t;
 
 // Session表只记录“这个session存在”，具体什么人在里面需要遍历client_t
@@ -228,6 +233,7 @@ static void handle_login(int sockfd, const message *msg, struct sockaddr_in *pee
     inet_ntop(AF_INET, &peer->sin_addr, clients[slot].ip, sizeof(clients[slot].ip));
     clients[slot].port = ntohs(peer->sin_port);
 
+    clients[slot].last_active = time(NULL);
     send_reply(sockfd, LO_ACK, "Login successful");
 }
 
@@ -345,6 +351,38 @@ static void handle_chat(int sockfd, const message *msg) {
     broadcast_to_session(clients[c].session_id, &out);
 }
 
+static void handle_private_msg(int sockfd, const message *msg) {
+    int sender = find_client_by_sock(sockfd);
+    if (sender < 0) return;
+
+    char target[MAX_NAME];
+    char text[MAX_DATA];
+
+    char *colon = strchr(msg->data, ':');
+    if (!colon) {
+        send_reply(sockfd, LO_NAK, "Usage: /msg <user> <message>");
+        return;
+    }
+    int tlen = colon - msg->data;
+    strncpy(target, msg->data, tlen);
+    target[tlen] = '\0';
+    strncpy(text, colon+1, MAX_DATA-1);
+
+    int t = find_client_by_id(target);
+    if (t < 0) {
+        send_reply(sockfd, LO_NAK, "User not online");
+        return;
+    }
+    if (t == sender) {
+        send_reply(sockfd, LO_NAK, "Cannot message yourself");
+        return;
+    }
+
+    message out;
+    init_message(&out, PRIVATE_MSG, clients[sender].id, text);
+    send_all(clients[t].sockfd, &out, sizeof(out));
+}
+
 int main(int argc, char *argv[]) {
     signal(SIGPIPE, SIG_IGN); // A fix for "broken pipeline"
     if (argc != 2) {
@@ -403,10 +441,28 @@ int main(int argc, char *argv[]) {
     while (1) {
         readfds = master;
 
-        if (select(fdmax + 1, &readfds, NULL, NULL, NULL) < 0) {
+        //inactivity
+        struct timeval timeout;
+        timeout.tv_sec = CHECK_INTERVAL;
+        timeout.tv_usec = 0;
+
+        int activity = select(fdmax + 1, &readfds, NULL, NULL, &timeout);
+        if (activity < 0) {
             perror("select");
             break;
         }
+
+        time_t now = time(NULL);
+        for (int i = 0; i < MAX_CLIENTS; i++) {
+            if (!clients[i].active) continue;
+            if (now - clients[i].last_active > INACTIVITY_LIMIT) {
+                printf("Disconnecting idle client: %s\n", clients[i].id);
+                send_reply(clients[i].sockfd, EXIT, "Disconnected due to inactivity");
+                FD_CLR(clients[i].sockfd, &master);
+                remove_client(i);
+            }
+        }
+        
 
         for (int fd = 0; fd <= fdmax; fd++) {
             if (!FD_ISSET(fd, &readfds)) continue;
@@ -459,6 +515,7 @@ int main(int argc, char *argv[]) {
                 if(clients[c].recv_pos == sizeof(message)) {
                     message *msg = (message *)clients[c].recv_buf;
                     clients[c].recv_pos = 0;
+                    clients[c].last_active = time(NULL); // timer update on every message
 
                     struct sockaddr_in peer;
                     socklen_t plen = sizeof(peer);
@@ -489,18 +546,14 @@ int main(int argc, char *argv[]) {
                     case MESSAGE:
                         handle_chat(fd, msg);
                         break;
+                    case PRIVATE_MSG:
+                        handle_private_msg(fd, msg);
+                        break;
                     default:
                         send_reply(fd, LO_NAK, "Unknown request");
                         break;
-                }
-
-                }
-
-
-
-                
-
-                
+                    }
+                }   
             }
         }
     }
